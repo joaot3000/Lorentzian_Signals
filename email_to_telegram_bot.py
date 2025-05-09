@@ -74,4 +74,127 @@ class EmailClient:
                 
                 email_info = {
                     'id': email_id.decode(),
-                    'subject': self._decode_header(email_message
+                    'subject': self._decode_header(email_message['Subject']),
+                    'from': self._decode_header(email_message['From']),
+                    'date': email_message['Date'],
+                    'body': self._extract_body(email_message)
+                }
+                emails.append(email_info)
+            
+            return emails
+        except Exception as e:
+            logger.error(f"Error fetching emails: {e}")
+            return []
+
+    def _decode_header(self, header):
+        """Decode email headers"""
+        if header is None:
+            return ""
+        decoded = decode_header(header)
+        return ''.join(
+            t[0].decode(t[1] or 'utf-8') if isinstance(t[0], bytes) else t[0]
+            for t in decoded
+        )
+
+    def _extract_body(self, email_message):
+        """Extract email body text"""
+        body = ""
+        if email_message.is_multipart():
+            for part in email_message.walk():
+                content_type = part.get_content_type()
+                if content_type == "text/plain":
+                    body = part.get_payload(decode=True).decode()
+                    break
+        else:
+            body = email_message.get_payload(decode=True).decode()
+        return body
+
+    def disconnect(self):
+        """Close email connection"""
+        if self.mail:
+            try:
+                self.mail.close()
+                self.mail.logout()
+            except:
+                pass
+
+class TelegramBot:
+    """Handles Telegram notifications"""
+    
+    def __init__(self):
+        self.token = os.getenv('TELEGRAM_BOT_TOKEN')
+        self.chat_id = os.getenv('TELEGRAM_CHAT_ID')
+        self.base_url = f"https://api.telegram.org/bot{self.token}"
+
+    def send_email_notification(self, email_data: dict) -> bool:
+        """Send formatted email notification"""
+        subject = email_data.get('subject', 'No Subject')
+        sender = email_data.get('from', 'Unknown Sender')
+        body_preview = (email_data.get('body', '')[:200] + '...') if len(email_data.get('body', '')) > 200 else email_data.get('body', '')
+        
+        message = (
+            f"📧 *New Email Received*\n\n"
+            f"*From:* {sender}\n"
+            f"*Subject:* {subject}\n\n"
+            f"*Preview:*\n{body_preview}"
+        )
+        
+        return self._send_message(message, parse_mode="Markdown")
+
+    def _send_message(self, text: str, parse_mode: str = None) -> bool:
+        """Send raw message to Telegram"""
+        try:
+            url = f"{self.base_url}/sendMessage"
+            payload = {
+                'chat_id': self.chat_id,
+                'text': text,
+                'parse_mode': parse_mode
+            }
+            response = requests.post(url, json=payload)
+            return response.status_code == 200
+        except Exception as e:
+            logger.error(f"Error sending Telegram message: {e}")
+            return False
+
+def main():
+    """Main execution loop"""
+    email_client = EmailClient()
+    telegram_bot = TelegramBot()
+    
+    check_interval = int(os.getenv('CHECK_INTERVAL', 300))  # 5 minutes default
+    max_emails = int(os.getenv('MAX_EMAILS', 10))
+    
+    logger.info("Starting email monitoring service...")
+    
+    while True:
+        try:
+            # Connect to email server
+            if not email_client.connect():
+                logger.error("Failed to connect to email server. Retrying...")
+                time.sleep(check_interval)
+                continue
+            
+            # Fetch unread emails
+            unread_emails = email_client.fetch_unread_emails(limit=max_emails)
+            
+            if unread_emails:
+                logger.info(f"Found {len(unread_emails)} new emails")
+                
+                for email_data in unread_emails:
+                    # Send notification via Telegram
+                    if telegram_bot.send_email_notification(email_data):
+                        logger.info(f"Notification sent for email from {email_data['from']}")
+                    else:
+                        logger.error(f"Failed to send notification for email from {email_data['from']}")
+            
+            email_client.disconnect()
+            
+        except Exception as e:
+            logger.error(f"Error in main loop: {e}")
+        
+        # Wait before next check
+        logger.info(f"Next check in {check_interval} seconds at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        time.sleep(check_interval)
+
+if __name__ == "__main__":
+    main()
