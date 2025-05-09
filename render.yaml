@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: email-telegram-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python3 email_to_telegram_bot.py
+    envVars:
+      - key: EMAIL_SERVER
+        value: imap.gmail.com
+      - key: EMAIL_PORT
+        value: 993
+      - key: EMAIL_USERNAME
+        value: your_email@gmail.com
+      - key: EMAIL_PASSWORD
+        value: your_app_password
+      - key: TELEGRAM_BOT_TOKEN
+        value: your_bot_token
+      - key: TELEGRAM_CHAT_ID
+        value: your_chat_id
+      - key: CHECK_INTERVAL
+        value: 25
+      - key: MAX_EMAILS
+        value: 10
