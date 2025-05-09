@@ -1,3 +1,5 @@
+import os
+
 # Add this near the top with other configs
 ALLOWED_SENDER = os.getenv('ALLOWED_SENDER', 'alerts@tradingview.com')
 
