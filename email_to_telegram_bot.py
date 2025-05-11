@@ -1,4 +1,7 @@
+from flask import Flask
 import os
+
+app = Flask(__name__)
 
 # Add this near the top with other configs
 ALLOWED_SENDER = os.getenv('ALLOWED_SENDER', 'alerts@tradingview.com')
@@ -70,3 +73,11 @@ def send_email_notification(self, email_data: dict) -> bool:
     )
     
     return self._send_message(message, parse_mode="Markdown")
+
+@app.route('/')
+def home():
+    return "Bot is running"  # Dummy endpoint for health checks
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))  # Render provides $PORT
+    app.run(host='0.0.0.0', port=port)  # Bind to Render's port
