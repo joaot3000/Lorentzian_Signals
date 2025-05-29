@@ -29,7 +29,7 @@ app.post("/", async (req, res) => {
     const sheets = google.sheets({ version: "v4", auth });
 
     await sheets.spreadsheets.values.append({
-      spreadsheetId: "https://script.google.com/macros/s/AKfycbysXzW8TFr3DXG2h7G3_ufQJGx5I7gweq_p-Croxck7-Iio_h_J4yAHIyOF5hE9jcZ4/exec", // ← Replace this
+      spreadsheetId: "AKfycbysXzW8TFr3DXG2h7G3_ufQJGx5I7gweq_p-Croxck7-Iio_h_J4yAHIyOF5hE9jcZ4", // ← Replace this
       range: "Signals!A:E",                  // ← Update if your sheet is named differently
       valueInputOption: "RAW",
       requestBody: {
